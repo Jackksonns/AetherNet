@@ -2,19 +2,21 @@
 
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.8+-red.svg)](https://pytorch.org)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![arXiv](https://img.shields.io/badge/arXiv-CVPR'26-b31b1b.svg)]()
+[![GitHub](https://img.shields.io/badge/Code-GitHub-black.svg)](https://github.com/Jackksonns/AetherNet/tree/main)
 
-**JkNet** is a state-of-the-art image enhancement network that combines wavelet analysis with modern deep learning for robust image super-resolution, denoising, and compression artifact removal. Built upon MambaIRv2 with innovative parallel shallow feature extraction, JkNet achieves superior performance across multiple image restoration tasks.
+**JkNet** is a state-of-the-art image enhancement network that combines wavelet analysis with modern deep learning for robust image super-resolution, denoising, and compression artifact removal. Built upon [MambaIRv2](https://arxiv.org/abs/2411.15269) with innovative parallel shallow feature extraction and enhanced by [SwinIR](https://arxiv.org/abs/2108.10257) components, JkNet achieves superior performance across multiple image restoration tasks.
+
+> 🚧 **Research Status**: This work is currently under review for CVPR 2026. The code is available for research purposes.
 
 ## 🚀 Key Features
 
 ### 🎯 **Dual-Branch Parallel Architecture**
 - **Wavelet Hint Branch**: Leverages Haar wavelet decomposition for explicit multi-resolution analysis
-- **FPA Branch**: Frequency Perception Attention for adaptive frequency component processing
+- **FPA Branch**: Frequency Perception Attention based on [Large Kernel Frequency-enhanced Network](https://ieeexplore.ieee.org/document/10678583) for adaptive frequency component processing
 - **Intelligent Fusion**: Two-stage fusion with global gating and local mask refinement
 
 ### 🔬 **Advanced Components**
-- **MambaIRv2 Backbone**: State-space models for efficient long-range dependency modeling
+- **MambaIRv2 Backbone**: Selective state-space models for efficient long-range dependency modeling
 - **SwinIR RSTB Tail**: Transformer-based refinement for enhanced reconstruction quality
 - **Adaptive Normalization**: Instance normalization with learnable scaling factors
 
@@ -62,7 +64,7 @@ self.wavelet_fuse = nn.Conv2d(in_chans*4, embed_dim, 1)
 self.wavelet_gate = nn.Sequential(...)  # Adaptive gating
 
 # Branch B: Frequency Perception  
-self.fpa = FPA(embed_dim)  # Frequency-domain attention
+self.fpa = FPA(embed_dim)  # Frequency-domain attention from LKFNet
 ```
 
 #### 2. **Two-Stage Fusion Mechanism**
@@ -84,8 +86,8 @@ self.fpa = FPA(embed_dim)  # Frequency-domain attention
 
 ### Quick Start
 ```bash
-git clone https://github.com/your-username/jknet.git
-cd jknet
+git clone https://github.com/Jackksonns/AetherNet.git
+cd AetherNet
 
 # Install dependencies
 pip install -r requirements.txt
@@ -203,14 +205,35 @@ model = JkNet(
 
 ## 📝 Citation
 
-If you use JkNet in your research, please cite:
+If you use JkNet in your research, please cite our work and the foundational papers:
 
 ```bibtex
-@article{jknet2026,
+@article{liang2021swinir,
+  title={SwinIR: Image Restoration Using Swin Transformer},
+  author={Liang, Jingyun and Cao, Jiezhang and Sun, Guolei and Zhang, Kai and Van Gool, Luc and Timofte, Radu},
+  journal={arXiv preprint arXiv:2108.10257},
+  year={2021}
+}
+
+@article{zhou2024mambairv2,
+  title={MambaIRv2: Efficient Image Restoration with State Space Models},
+  author={Zhou, Y. and Zhang, K. and Li, Y. and others},
+  journal={arXiv preprint arXiv:2411.15269},
+  year={2024}
+}
+
+@inproceedings{chen2024large,
+  title={Large Kernel Frequency-enhanced Network for Efficient Single Image Super-Resolution},
+  author={Chen, Y. and others},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition Workshops},
+  year={2024}
+}
+
+@article{jknet2025,
   title={JkNet: Robust Image Enhancement with Parallel Wavelet-Frequency Perception},
-  author={Your Name and Collaborators},
-  journal={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-  year={2026}
+  author={Under Review},
+  journal={Submitted to CVPR},
+  year={2025}
 }
 ```
 
@@ -218,7 +241,7 @@ If you use JkNet in your research, please cite:
 
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/your-username/jknet/issues)
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/Jackksonns/AetherNet/issues)
 - 💡 **Feature Requests**: Open an issue with the "enhancement" label
 - 🔧 **Pull Requests**: Welcome for bug fixes and improvements
 
@@ -228,10 +251,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Built upon [MambaIRv2](https://github.com/your-username/mambairv2) and [SwinIR](https://github.com/JingyunLiang/SwinIR)
+- Built upon [MambaIRv2](https://arxiv.org/abs/2411.15269) and [SwinIR](https://arxiv.org/abs/2108.10257)
+- FPA module adapted from [Large Kernel Frequency-enhanced Network](https://ieeexplore.ieee.org/document/10678583) (CVPRW 2024)
 - Wavelet components inspired by traditional multi-resolution analysis
 - Thanks to all contributors and the open-source community
 
 ---
 
 **JkNet**: Where traditional signal processing meets modern deep learning for unprecedented image enhancement quality. 🚀
+
+*Part of the [AetherNet](https://github.com/Jackksonns/AetherNet) project.*
