@@ -6,16 +6,16 @@
 
 **JkNet** is a state-of-the-art image enhancement network that combines wavelet analysis with modern deep learning for robust image super-resolution, denoising, and compression artifact removal. Built upon [MambaIRv2](https://arxiv.org/abs/2411.15269) with innovative parallel shallow feature extraction and enhanced by [SwinIR](https://arxiv.org/abs/2108.10257) components, JkNet achieves superior performance across multiple image restoration tasks.
 
-> 🚧 **Research Status**: This work is currently under review for CVPR 2026. The code is available for research purposes.
+>  **Research Status**: This work is currently under review for CVPR 2026. The code is available for research purposes.
 
 ## 🚀 Key Features
 
-### 🎯 **Dual-Branch Parallel Architecture**
+###  **Dual-Branch Parallel Architecture**
 - **Wavelet Hint Branch**: Leverages Haar wavelet decomposition for explicit multi-resolution analysis
 - **FPA Branch**: Frequency Perception Attention based on [Large Kernel Frequency-enhanced Network](https://ieeexplore.ieee.org/document/10678583) for adaptive frequency component processing
 - **Intelligent Fusion**: Two-stage fusion with global gating and local mask refinement
 
-### 🔬 **Advanced Components**
+###  **Advanced Components**
 - **MambaIRv2 Backbone**: Selective state-space models for efficient long-range dependency modeling
 - **SwinIR RSTB Tail**: Transformer-based refinement for enhanced reconstruction quality
 - **Adaptive Normalization**: Instance normalization with learnable scaling factors
@@ -96,7 +96,7 @@ pip install -r requirements.txt
 pip install mamba-ssm
 ```
 
-## 📚 Usage
+##  Usage
 
 ### Training
 ```bash
@@ -132,7 +132,7 @@ with torch.no_grad():
     output = model(lr_image)
 ```
 
-## 🎯 Model Configuration
+##  Model Configuration
 
 ### Available Model Sizes
 | Model | Embed Dim | Params | Use Case |
@@ -165,11 +165,11 @@ model = JkNet(upscale=1, upsampler='', img_range=255.0)
 ## 🎨 Applications
 
 ### Supported Tasks
-- **✅ Single Image Super-Resolution**
-- **✅ Real-World Image Denoising** 
-- **✅ JPEG Compression Artifact Removal**
-- **✅ Lightweight Mobile Enhancement**
-- **✅ Real-Scenario Image Restoration**
+- ** Single Image Super-Resolution**
+- ** Real-World Image Denoising** 
+- ** JPEG Compression Artifact Removal**
+- ** Lightweight Mobile Enhancement**
+- ** Real-Scenario Image Restoration**
 
 ### Input/Output Examples
 ```
@@ -237,19 +237,19 @@ If you use JkNet in your research, please cite our work and the foundational pap
 }
 ```
 
-## 🤝 Contributing
+##  Contributing
 
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/Jackksonns/AetherNet/issues)
-- 💡 **Feature Requests**: Open an issue with the "enhancement" label
-- 🔧 **Pull Requests**: Welcome for bug fixes and improvements
+-  **Bug Reports**: [GitHub Issues](https://github.com/Jackksonns/AetherNet/issues)
+-  **Feature Requests**: Open an issue with the "enhancement" label
+-  **Pull Requests**: Welcome for bug fixes and improvements
 
-## 📄 License
+##  License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - Built upon [MambaIRv2](https://arxiv.org/abs/2411.15269) and [SwinIR](https://arxiv.org/abs/2108.10257)
 - FPA module adapted from [Large Kernel Frequency-enhanced Network](https://ieeexplore.ieee.org/document/10678583) (CVPRW 2024)
