@@ -32,15 +32,81 @@ def set_seed(seed: int = 42):
 def _make_img_size_divisible(patch_size, window_size):
     if patch_size % window_size == 0:
         return patch_size
-    return int(np.ceil(patch_size / window_size) * window_size)
+    k = patch_size // window_size
+    return max(window_size, k * window_size)
+
+def _make_divisible(n, m):
+    if n % m == 0:
+        return n
+    k = n // m
+    return max(m, k * m)
+
+def calculate_psnr(img1, img2, crop_border=0, input_order='HWC'):
+    if input_order == 'CHW':
+        img1 = img1.transpose(1, 2, 0)
+        img2 = img2.transpose(1, 2, 0)
+    if crop_border > 0:
+        img1 = img1[crop_border:-crop_border, crop_border:-crop_border, :]
+        img2 = img2[crop_border:-crop_border, crop_border:-crop_border, :]
+    img1 = img1.astype(np.float64)
+    img2 = img2.astype(np.float64)
+    mse = np.mean((img1 - img2) ** 2)
+    if mse == 0:
+        return 99.0
+    return 20 * math.log10(255.0 / math.sqrt(mse))
+
+def _imagelist_from_dir(root, exts=('.png','.jpg','.jpeg','.bmp','.tif','.tiff')):
+    files = []
+    for e in exts:
+        files += glob.glob(os.path.join(root, f'**/*{e}'), recursive=True)
+    files = sorted(files)
+    return files
+
+def _center_crop_to_multiple(img, multiple):
+    w, h = img.size
+    W = (w // multiple) * multiple
+    H = (h // multiple) * multiple
+    if W == 0 or H == 0:
+        W = max(multiple, W); H = max(multiple, H)
+        return img.resize((W, H), Image.BICUBIC)
+    left = (w - W) // 2; top = (h - H) // 2
+    return img.crop((left, top, left + W, top + H))
+
+def _random_crop_pair(hr, scale, lr_patch_target, window):
+    """
+    Random crop from HR such that LR patch == lr_patch_target (aligned to window multiple);
+    then HR = LR * scale.
+    """
+    lr_patch = _make_img_size_divisible(lr_patch_target, window)
+    hr_patch = lr_patch * scale
+    w, h = hr.size
+    if w < hr_patch or h < hr_patch:
+        hr = hr.resize((max(hr_patch, w), max(hr_patch, h)), Image.BICUBIC)
+        w, h = hr.size
+    left = random.randint(0, w - hr_patch)
+    top  = random.randint(0, h - hr_patch)
+    hr_patch_img = hr.crop((left, top, left + hr_patch, top + hr_patch))
+    lr_patch_img = hr_patch_img.resize((lr_patch, lr_patch), Image.BICUBIC)
+    return lr_patch_img, hr_patch_img
+
+def _add_gaussian_noise(pil_img, sigma=15):
+    arr = np.array(pil_img).astype(np.float32)
+    noise = np.random.normal(0, sigma, arr.shape).astype(np.float32)
+    arr = np.clip(arr + noise, 0, 255).astype(np.uint8)
+    return Image.fromarray(arr)
+
+def _jpeg_compress(pil_img, quality=40):
+    buff = BytesIO()
+    pil_img.save(buff, format='JPEG', quality=int(quality))
+    buff.seek(0)
+    return Image.open(buff).convert(pil_img.mode)
 
 # -------------------------
-# Dataset (same as reference)
+# Unified Dataset (same behavior as reference)
 # -------------------------
 class SRDataset(Dataset):
-    def __init__(self, root_hr=None, root_lq=None, root_gt=None,
-                 task='classical_sr', scale=4, patch=48, noise=0, jpeg=0,
-                 split='train', gray=False, window_size=8):
+    def __init__(self, root_hr=None, root_lq=None, root_gt=None, task='classical_sr',
+                 scale=4, patch=64, noise=0, jpeg=0, split='train', gray=False, window_size=8):
         super().__init__()
         self.task = task
         self.scale = int(scale)
@@ -56,17 +122,8 @@ class SRDataset(Dataset):
         self.root_gt = root_gt
 
         if split == 'train':
-            # 检查root_hr/GT目录是否存在，如果存在则使用它
-            gt_dir = os.path.join(self.root_hr, 'GT') if self.root_hr else None
-            if gt_dir and os.path.isdir(gt_dir):
-                self.hr_files = _imagelist_from_dir(gt_dir)
-            elif self.root_hr and os.path.isdir(self.root_hr):
-                self.hr_files = _imagelist_from_dir(self.root_hr)
-            else:
-                raise RuntimeError(f"train HR dir invalid: {self.root_hr}")
-            # 添加调试信息
-            print(f"训练集路径: {root_hr}")
-            print(f"找到的训练图像数量: {len(self.hr_files)}")
+            assert self.root_hr and os.path.isdir(self.root_hr), f"train HR dir invalid: {self.root_hr}"
+            self.hr_files = _imagelist_from_dir(self.root_hr)
         else:
             if self.root_lq and self.root_gt and os.path.isdir(self.root_lq) and os.path.isdir(self.root_gt):
                 self.lq_files = _imagelist_from_dir(self.root_lq)
@@ -77,32 +134,75 @@ class SRDataset(Dataset):
                     name = os.path.basename(p)
                     if name in gt_map:
                         self.pairs.append((p, gt_map[name]))
+                if len(self.pairs) == 0:
+                    raise RuntimeError("No LQ/GT pairs matched in val folders.")
+                self.hr_files = None
             else:
+                assert self.root_hr and os.path.isdir(self.root_hr), f"val HR dir invalid: {self.root_hr}"
                 self.hr_files = _imagelist_from_dir(self.root_hr)
+                self.pairs = None
 
     def __len__(self):
         if self.split == 'train':
             return len(self.hr_files) * 50  # <-- mimic reference repeat
-        return len(self.pairs) if hasattr(self, 'pairs') else len(self.hr_files)
-
-    def __getitem__(self, index):
-        if self.split == 'train':
-            hr_path = self.hr_files[index % len(self.hr_files)]
-        elif hasattr(self, 'pairs'):
-            lr_path, hr_path = self.pairs[index]
         else:
-            hr_path = self.hr_files[index]
+            return len(self.pairs) if self.pairs is not None else len(self.hr_files)
 
-        hr = Image.open(hr_path).convert('L' if self.gray else 'RGB')
+    def _load_img(self, path):
+        img = Image.open(path).convert('RGB')
+        if self.gray:
+            img = img.convert('L')
+        return img
+
+    def __getitem__(self, idx):
         if self.split == 'train':
-            # Train: generate LR on-the-fly
-            lr, hr = _generate_lr(hr, self.task, self.scale, self.noise, self.jpeg, self.patch)
-        else:
-            # Val: load LR image if exists
-            if hasattr(self, 'pairs'):
-                lr = Image.open(lr_path).convert('L' if self.gray else 'RGB')
+            hr = self._load_img(self.hr_files[idx % len(self.hr_files)])
+            if self.task == 'classical_sr':
+                lr, hr = _random_crop_pair(hr, self.scale, self.patch, self.window)
+            elif self.task in ('gray_dn', 'color_dn'):
+                w, h = hr.size
+                if w < self.patch or h < self.patch:
+                    hr = hr.resize((max(self.patch, w), max(self.patch, h)), Image.BICUBIC)
+                left = random.randint(0, hr.size[0] - self.patch)
+                top = random.randint(0, hr.size[1] - self.patch)
+                hr = hr.crop((left, top, left + self.patch, top + self.patch))
+                lr = _add_gaussian_noise(hr, sigma=self.noise if self.noise > 0 else 15)
+            elif self.task in ('jpeg_car', 'color_jpeg_car'):
+                w, h = hr.size
+                if w < self.patch or h < self.patch:
+                    hr = hr.resize((max(self.patch, w), max(self.patch, h)), Image.BICUBIC)
+                left = random.randint(0, hr.size[0] - self.patch)
+                top = random.randint(0, hr.size[1] - self.patch)
+                hr = hr.crop((left, top, left + self.patch, top + self.patch))
+                lr = _jpeg_compress(hr, quality=self.jpeg if self.jpeg > 0 else 40)
             else:
-                lr, hr = _generate_lr(hr, self.task, self.scale, self.noise, self.jpeg, 0)
+                raise ValueError(f"Unsupported task: {self.task}")
+        else:
+            if self.pairs is not None:
+                lq_path, gt_path = self.pairs[idx]
+                lr = self._load_img(lq_path)
+                hr = self._load_img(gt_path)
+                if self.task == 'classical_sr':
+                    W = _make_divisible(lr.size[0], self.window)
+                    H = _make_divisible(lr.size[1], self.window)
+                    if (W, H) != lr.size:
+                        lr = lr.resize((W, H), Image.BICUBIC)
+                        hr = hr.resize((W * self.scale, H * self.scale), Image.BICUBIC)
+            else:
+                hr = self._load_img(self.hr_files[idx])
+                if self.task == 'classical_sr':
+                    base_multiple = self.scale * self.window
+                    hr = _center_crop_to_multiple(hr, base_multiple)
+                    w, h = hr.size
+                    lr = hr.resize((w // self.scale, h // self.scale), Image.BICUBIC)
+                elif self.task in ('gray_dn', 'color_dn'):
+                    hr = _center_crop_to_multiple(hr, self.window)
+                    lr = _add_gaussian_noise(hr, sigma=self.noise if self.noise > 0 else 15)
+                elif self.task in ('jpeg_car', 'color_jpeg_car'):
+                    hr = _center_crop_to_multiple(hr, self.window)
+                    lr = _jpeg_compress(hr, quality=self.jpeg if self.jpeg > 0 else 40)
+                else:
+                    raise ValueError(f"Unsupported task: {self.task}")
 
         # to tensor [0,1]
         if self.gray:
@@ -111,66 +211,9 @@ class SRDataset(Dataset):
             lr = torch.from_numpy(lr).unsqueeze(0)
             hr = torch.from_numpy(hr).unsqueeze(0)
         else:
-            lr = torch.from_numpy(np.array(lr).astype(np.float32).transpose(2, 0, 1)) / 255.0
-            hr = torch.from_numpy(np.array(hr).astype(np.float32).transpose(2, 0, 1)) / 255.0
+            lr = torch.from_numpy(np.array(lr).astype(np.float32).transpose(2,0,1)) / 255.0
+            hr = torch.from_numpy(np.array(hr).astype(np.float32).transpose(2,0,1)) / 255.0
         return lr, hr
-
-def _imagelist_from_dir(root):
-    exts = ('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff')
-    files = []
-    for e in exts:
-        files += glob.glob(os.path.join(root, f'**/*{e}'), recursive=True)
-    files = sorted(files)
-    return files
-
-def _generate_lr(hr, task, scale, noise, jpeg, patch_size):
-    if patch_size > 0:
-        hr = _extract_patch(hr, patch_size, scale)
-    lr = _apply_degradation(hr, task, scale, noise, jpeg)
-    return lr, hr
-
-def _extract_patch(im: Image.Image, patch: int, scale: int) -> Image.Image:
-    w, h = im.size
-    ww, hh = patch * scale, patch * scale
-    if w < ww or h < hh:
-        im = im.resize((max(w, ww), max(h, hh)), resample=Image.BICUBIC)
-        w, h = im.size
-    l, t = random.randint(0, w - ww), random.randint(0, h - hh)
-    im = im.crop((l, t, l + ww, t + hh))
-    return im
-
-def _apply_degradation(im: Image.Image, task, scale, noise, jpeg):
-    # bicubic | gaussian | jpeg
-    if task in ('classical_sr', 'lightweight_sr', 'real_sr'):
-        # Resize: HR -> LR (scale)
-        w, h = im.size
-        lr = im.resize((w // scale, h // scale), resample=Image.BICUBIC)
-    elif task in ('gray_dn', 'color_dn'):
-        lr = im
-    elif task in ('jpeg_car', 'color_jpeg_car'):
-        lr = im
-    else:
-        raise ValueError(f"Unknown task: {task}")
-
-    # jpeg compression
-    if jpeg > 0:
-        with BytesIO() as f:
-            lr.save(f, format='JPEG', quality=jpeg)
-            f.seek(0)
-            lr = Image.open(f).copy()
-
-    # noise injection
-    if noise > 0:
-        lr = np.array(lr)
-        lr = lr + np.random.normal(0, noise, lr.shape)
-        lr = np.clip(lr, 0, 255).astype(np.uint8)
-        lr = Image.fromarray(lr)
-
-    # final downscale (for SR tasks)
-    if task in ('classical_sr', 'lightweight_sr', 'real_sr'):
-        lr = lr.resize((w // scale, h // scale), resample=Image.BICUBIC)
-
-    return lr
 
 # -------------------------
 # Dataloaders (same as reference)
@@ -189,8 +232,7 @@ def build_train_loader(args, window_size):
 
 def build_val_loader(args, window_size):
     gray = (args.task in ('gray_dn', 'jpeg_car'))
-    use_pairs = bool(args.folder_val_lq and args.folder_val_gt and
-                     os.path.isdir(args.folder_val_lq) and os.path.isdir(args.folder_val_gt))
+    use_pairs = bool(getattr(args, 'folder_val_lq', '')) and bool(getattr(args, 'folder_val_gt', ''))
     if use_pairs:
         ds = SRDataset(root_lq=args.folder_val_lq, root_gt=args.folder_val_gt,
                        task=args.task, scale=args.scale, noise=getattr(args, 'noise', 0),
@@ -253,43 +295,40 @@ def train(args, define_model_fn, save_dir):
             model.eval()
             psnr_total, seen = 0.0, 0
             with torch.no_grad():
-                for lr, hr in tqdm(val_loader, desc="Validate", leave=False, dynamic_ncols=True):
-                    lr, hr = lr.to(device), hr.to(device)
-                    pred = model(lr)
-                    psnr = _calculate_psnr(pred, hr)
-                    psnr_total += psnr
-                    seen += 1
-            avg_psnr = psnr_total / max(1, seen)
-            tqdm.write(f"Epoch [{epoch}/{args.epochs}]  ValPSNR: {avg_psnr:.4f}")
+                vbar = tqdm(val_loader, desc="Val", dynamic_ncols=True, leave=False)
+                for lq, gt in vbar:
+                    lq, gt = lq.to(device), gt.to(device)
+                    out = model(lq)
+                    out_np = out.squeeze(0).permute(1,2,0).detach().cpu().numpy().clip(0,1)
+                    gt_np  = gt .squeeze(0).permute(1,2,0).detach().cpu().numpy().clip(0,1)
+                    out_np = (out_np * 255.0).round()
+                    gt_np  = (gt_np  * 255.0).round()
+                    border = args.scale if args.task in ('classical_sr','lightweight_sr','real_sr') else 0
+                    psnr = calculate_psnr(out_np, gt_np, crop_border=border, input_order='HWC')
+                    psnr_total += psnr; seen += 1
+                    vbar.set_postfix(psnr=f"{(psnr_total/max(1,seen)):.2f} dB")
+            val_psnr = psnr_total / max(1, seen)
+            tqdm.write(f"Validation PSNR: {val_psnr:.2f} dB")
 
-            # save best
-            if avg_psnr > best_psnr:
-                best_psnr = avg_psnr
+            if val_psnr > best_psnr:
+                best_psnr = val_psnr
                 no_improve = 0
-                torch.save(model.state_dict(), os.path.join(save_dir, "best.pth"))
-                tqdm.write(f"Saved best model with PSNR: {best_psnr:.4f}")
+                save_path = os.path.join(save_dir,
+                    f"best_task-{args.task}_scale-{args.scale}_patch-{getattr(args,'training_patch_size',64)}_"
+                    f"{args.model_size}_bs-{args.batch_size}_lr-{args.lr}_psnr-{val_psnr:.2f}.pth")
+                torch.save(model.state_dict(), save_path)
+                tqdm.write(f"[Saved] {save_path}")
             else:
                 no_improve += 1
-                if no_improve >= args.patience:
-                    tqdm.write(f"Early stopping at epoch {epoch}")
+                tqdm.write(f"No improvement for {no_improve} epoch(s).")
+                if no_improve >= getattr(args, 'patience', 5):
+                    tqdm.write(f"[Early Stop] at epoch {epoch}")
                     break
-
-    # Save final model
-    torch.save(model.state_dict(), os.path.join(save_dir, "final.pth"))
-    tqdm.write(f"Training finished. Best PSNR: {best_psnr:.4f}")
-
-def _calculate_psnr(pred, gt):
-    """Calculate PSNR between predicted and ground truth images"""
-    # 处理尺寸不匹配问题，取较小的尺寸
-    if pred.shape != gt.shape:
-        min_h = min(pred.shape[2], gt.shape[2])
-        min_w = min(pred.shape[3], gt.shape[3])
-        pred = pred[:, :, :min_h, :min_w]
-        gt = gt[:, :, :min_h, :min_w]
     
-    mse = F.mse_loss(pred, gt, reduction='none').view(pred.shape[0], -1).mean(dim=1)
-    psnr = 10 * torch.log10(1.0 / mse)
-    return psnr.mean().item()
+    # Save final model
+    save_path = os.path.join(save_dir, "final.pth")
+    torch.save(model.state_dict(), save_path)
+    tqdm.write(f"Training finished. Best PSNR: {best_psnr:.2f} dB")
 
 # -------------------------
 # Model definition (Pure MambaIRv2)
@@ -391,12 +430,6 @@ def main():
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--save_dir", type=str, default="model_zoo/MambaIRv2", help="Save directory")
     args = parser.parse_args()
-    
-    # Print configurations
-    print("====== Training Pure MambaIRv2 ======")
-    for arg in vars(args):
-        print(f"{arg}: {getattr(args, arg)}")
-    print("=" * 50)
     
     train(args, define_model, args.save_dir)
 
