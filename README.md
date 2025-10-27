@@ -150,18 +150,6 @@ model = JkNet(upscale=4, upsampler='pixelshuffle', img_range=1.0)
 model = JkNet(upscale=1, upsampler='', img_range=255.0)
 ```
 
-## 📊 Performance
-
-### Benchmark Results (DIV2K Validation Set)
-
-| Model | Scale | PSNR ↑ | SSIM ↑ | Params |
-|-------|-------|---------|---------|---------|
-| JkNet-S | ×4 | 32.45 | 0.895 | 0.5M |
-| JkNet-M | ×4 | 33.12 | 0.902 | 2.5M |
-| JkNet-L | ×4 | **33.58** | **0.908** | 5.5M |
-
-*Note: Results may vary based on training configuration and dataset.*
-
 ## 🎨 Applications
 
 ### Supported Tasks
