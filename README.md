@@ -219,8 +219,8 @@ If you use JkNet in your research, please cite our work and the foundational pap
 
 @article{jknet2025,
   title={JkNet: Robust Image Enhancement with Parallel Wavelet-Frequency Perception},
-  author={Under Review},
-  journal={Submitted to CVPR},
+  author={Hongyi Zhou},
+  journal={still developing},
   year={2025}
 }
 ```
