@@ -6,7 +6,7 @@
 
 **JkNet** is a state-of-the-art image enhancement network that combines wavelet analysis with modern deep learning for robust image super-resolution, denoising, and compression artifact removal. Built upon [MambaIRv2](https://arxiv.org/abs/2411.15269) with innovative parallel shallow feature extraction and enhanced by [SwinIR](https://arxiv.org/abs/2108.10257) components, JkNet achieves superior performance across multiple image restoration tasks. (Explore more of my work at [Jackksonns' GitHub](https://github.com/Jackksonns/).)
 
->  **Research Status**: This work is currently under review for CVPR 2026. The code is available for research purposes.
+>  **Research Status**: still developing---.
 
 ## 🚀 Key Features
 
