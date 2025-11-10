@@ -27,32 +27,7 @@
 - **Lightweight & Real-SR variants**
 
 ## 🏗️ Architecture Overview
-
-```mermaid
-graph TD
-    A[Input Image] --> B[Symmetric Padding]
-    B --> C[Image Normalization]
-    C --> D[Shallow Feature Extraction]
-    
-    D --> E[Wavelet Branch]
-    D --> F[FPA Branch]
-    
-    E --> G[Haar DWT]
-    G --> H[Multi-Scale Fusion]
-    H --> I[Wavelet Gate]
-    
-    F --> J[Frequency Attention]
-    J --> K[Spectral Processing]
-    
-    I --> L[Two-Stage Fusion]
-    K --> L
-    
-    L --> M[MambaIRv2 Backbone]
-    M --> N[RSTB Tail Polish]
-    N --> O[Upsampling]
-    O --> P[Reconstruction]
-    P --> Q[Output Image]
-```
+![The Architecture of JKNet](jknet.png)
 
 ### Core Components
 
