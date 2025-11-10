@@ -8,7 +8,7 @@
 
 >  **Research Status**: still developing---.
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 ![The Architecture of JKNet](jknet.png)
 
 ## 🚀 Key Features
