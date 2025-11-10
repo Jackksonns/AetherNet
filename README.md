@@ -8,6 +8,9 @@
 
 >  **Research Status**: still developing---.
 
+## 🏗️ Architecture Overview
+![The Architecture of JKNet](jknet.png)
+
 ## 🚀 Key Features
 
 ###  **Dual-Branch Parallel Architecture**
@@ -25,10 +28,6 @@
 - **Real-World Image Denoising** (Gaussian noise removal)
 - **JPEG Compression Artifact Reduction**
 - **Lightweight & Real-SR variants**
-
-## 🏗️ Architecture Overview
-![The Architecture of JKNet](jknet.png)
-
 ### Core Components
 
 #### 1. **Parallel Shallow Frontend**
