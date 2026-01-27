@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 <p align="center">
-  <img src="assets/jknet.png" alt="Architecture" width="70%" />
+  <img src="assets/jknet.png" alt="Architecture" width="85%" />
 </p>
 
 **AetherNet** 是一个基于设计模式构建的图像恢复研究框架，整合了多种先进的图像超分辨率、去噪和压缩伪影去除模型。项目采用工厂模式、策略模式、模板方法和注册表模式，提供统一且可扩展的训练与测试接口。
