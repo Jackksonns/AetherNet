@@ -1,225 +1,257 @@
-# JkNet: Robust Image Enhancement with Parallel Wavelet-Frequency Perception
+# AetherNet: Image Restoration with Design Patterns
 
-[![PyTorch](https://img.shields.io/badge/PyTorch-1.8+-red.svg)](https://pytorch.org)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub](https://img.shields.io/badge/Code-GitHub-black.svg)](https://github.com/Jackksonns/AetherNet/tree/main)
+[![PyTorch](https://img.shields.io/badge/PyTorch-1.12+-red.svg)](https://pytorch.org)
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**JkNet** is a state-of-the-art image enhancement network that combines wavelet analysis with modern deep learning for robust image super-resolution, denoising, and compression artifact removal. Built upon [MambaIRv2](https://arxiv.org/abs/2411.15269) with innovative parallel shallow feature extraction and enhanced by [SwinIR](https://arxiv.org/abs/2108.10257) components, JkNet achieves superior performance across multiple image restoration tasks. (Explore more of my work at [Jackksonns' GitHub](https://github.com/Jackksonns/).)
+<p align="center">
+  <img src="assets/jknet.png" alt="Architecture" width="70%" />
+</p>
 
->  **Research Status**: still developing---.
+**AetherNet** 是一个基于设计模式构建的图像恢复研究框架，整合了多种先进的图像超分辨率、去噪和压缩伪影去除模型。项目采用工厂模式、策略模式、模板方法和注册表模式，提供统一且可扩展的训练与测试接口。
 
-## Architecture Overview
-![The Architecture of JKNet](jknet.png)
+> **研究状态**: 开发中
 
-## 🚀 Key Features
+## 特性
 
-###  **Dual-Branch Parallel Architecture**
-- **Wavelet Hint Branch**: Leverages Haar wavelet decomposition for explicit multi-resolution analysis
-- **FPA Branch**: Frequency Perception Attention based on [Large Kernel Frequency-enhanced Network](https://ieeexplore.ieee.org/document/10678583) for adaptive frequency component processing
-- **Intelligent Fusion**: Two-stage fusion with global gating and local mask refinement
+- **设计模式驱动**: 工厂、策略、模板方法、注册表模式，代码清晰易扩展
+- **即插即用模型**: SwinIR、MambaIRv2、CWFNet、EDSR、ELAN、SRFormer
+- **配置驱动训练**: YAML配置 + 命令行参数，灵活控制实验
+- **多任务支持**: 经典SR、真实世界去噪、JPEG伪影去除
 
-###  **Advanced Components**
-- **MambaIRv2 Backbone**: Selective state-space models for efficient long-range dependency modeling
-- **SwinIR RSTB Tail**: Transformer-based refinement for enhanced reconstruction quality
-- **Adaptive Normalization**: Instance normalization with learnable scaling factors
+## 设计模式
 
-### ⚡ **Multi-Task Capability**
-- **Classical Super-Resolution** (×2, ×3, ×4, ×8)
-- **Real-World Image Denoising** (Gaussian noise removal)
-- **JPEG Compression Artifact Reduction**
-- **Lightweight & Real-SR variants**
-### Core Components
+### 1. 注册表模式 (Registry Pattern)
 
-#### 1. **Parallel Shallow Frontend**
+全局注册表管理模型、数据集、损失函数等组件：
+
 ```python
-# Branch A: Wavelet Analysis
-self.dwt = DWT2D_Haar()  # Haar wavelet decomposition
-self.wavelet_fuse = nn.Conv2d(in_chans*4, embed_dim, 1)
-self.wavelet_gate = nn.Sequential(...)  # Adaptive gating
+from core import MODEL_REGISTRY
 
-# Branch B: Frequency Perception  
-self.fpa = FPA(embed_dim)  # Frequency-domain attention from LKFNet
+@MODEL_REGISTRY.register()
+class MyModel(nn.Module):
+    ...
+
+# 获取已注册模型
+model_cls = MODEL_REGISTRY.get('MyModel')
 ```
 
-#### 2. **Two-Stage Fusion Mechanism**
-- **Stage 1**: Global feature gating with adaptive weights
-- **Stage 2**: Local mask refinement for spatial adaptation
-- **Residual Scaling**: Learnable scaling factors for stable training
+### 2. 工厂模式 (Factory Pattern)
 
-#### 3. **Backbone & Enhancement**
-- **MambaIRv2**: Selective state-space models for efficient processing
-- **RSTB Tail**: Residual Swin Transformer Blocks for final refinement
-- **Multi-Scale Upsampling**: Pixel shuffle, direct, or nearest+conv
+统一的模型创建接口：
 
-## 🛠️ Installation
+```python
+from core import ModelFactory
 
-### Prerequisites
+# 通过配置创建
+config = {'model_name': 'SwinIR', 'upscale': 4, 'embed_dim': 180}
+model = ModelFactory.create(config)
+
+# 通过名称创建
+model = ModelFactory.create_by_name('CWFNet', upscale=4)
+```
+
+### 3. 策略模式 (Strategy Pattern)
+
+灵活的图像退化策略：
+
+```python
+from core import ClassicalSRDegradation, ColorDenoiseDegradation
+
+# 经典SR退化（双三次下采样）
+degradation = ClassicalSRDegradation(scale=4)
+lr_image = degradation.apply(hr_image)
+
+# 去噪退化（高斯噪声）
+degradation = ColorDenoiseDegradation(sigma=25)
+noisy_image = degradation.apply(clean_image)
+```
+
+### 4. 模板方法模式 (Template Method Pattern)
+
+标准化的训练/测试流程：
+
+```python
+from core import BaseTrainer
+
+class SwinIRTrainer(BaseTrainer):
+    def build_model(self):
+        return SwinIR(**self.config['model'])
+    
+    def train_step(self, batch):
+        lr, hr = batch
+        output = self.model(lr)
+        loss = self.criterion(output, hr)
+        ...
+        return loss.item()
+
+trainer = SwinIRTrainer(config)
+trainer.train()
+```
+
+## 安装
+
+### 环境要求
+
 - Python 3.8+
-- PyTorch 1.8+
-- CUDA 11.0+
+- PyTorch 1.12+
+- CUDA 11.0+ (推荐)
 
-### Quick Start
+### 快速安装
+
 ```bash
 git clone https://github.com/Jackksonns/AetherNet.git
 cd AetherNet
 
-# Install dependencies
+# 创建虚拟环境（推荐）
+conda create -n aethernet python=3.9
+conda activate aethernet
+
+# 安装PyTorch（根据CUDA版本选择）
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+
+# 安装依赖
 pip install -r requirements.txt
 
-# For MambaSSM support (required for MambaIRv2)
+# MambaIRv2支持（可选）
 pip install mamba-ssm
 ```
 
-##  Usage
+## 数据集准备
 
-### Training
+### DIV2K
+
 ```bash
-# Classical Super-Resolution (4×)
-python train_jknet.py --task classical_sr --scale 4 \
-    --model_size MambaIRv2-M --training_patch_size 64 \
-    --batch_size 4 --epochs 10 --lr 1e-4 \
-    --train_dir datasets/DIV2K/train \
-    --val_dir datasets/DIV2K/val
+# 下载DIV2K数据集
+cd datasets
+bash organize_div2k.sh
 
-# Image Denoising
-python train_jknet.py --task color_dn --noise 15 \
-    --model_size MambaIRv2-S --training_patch_size 128
-
-# JPEG Artifact Removal  
-python train_jknet.py --task color_jpeg_car --jpeg 40 \
-    --model_size MambaIRv2-M --window_size 7
+# 目录结构
+datasets/
+├── DIV2K/
+│   ├── train/
+│   │   ├── HR/           # 高分辨率图像
+│   │   └── LR_bicubic/   # 双三次下采样图像
+│   │       ├── X2/
+│   │       ├── X3/
+│   │       └── X4/
+│   └── val/
 ```
 
-### Inference
+### 自定义数据集
+
+参考 [datasets/dataset.py](datasets/dataset.py) 实现自定义数据集类。
+
+## 使用方法
+
+### 训练
+
+```bash
+# 使用配置文件训练
+python scripts/train/train.py --config configs/train_MambaIRv2_SR_x4.yml
+
+# 训练SwinIR
+python scripts/train/train_swinir.py --scale 4 --batch_size 8 --epochs 100
+
+# 训练CWFNet
+python scripts/train/train_cwfnet.py --scale 4 --use_wavelet --use_cvoca
+```
+
+### 测试
+
+```bash
+# 测试SwinIR
+python scripts/test/test_swinir.py --checkpoint weights/swinir_x4.pth
+
+# 测试CWFNet
+python scripts/test/test_cwfnet.py --checkpoint weights/cwfnet_x4.pth
+```
+
+### Python API
+
 ```python
-from models.jknet import JkNet
+from models import SwinIR
+from core import ModelFactory
 import torch
 
-# Load pre-trained model
-model = JkNet(upscale=4, embed_dim=180, depths=[6]*6, 
-              num_heads=[6]*6, window_size=8)
-model.load_state_dict(torch.load('path/to/weights.pth'))
+# 方式1：直接导入
+model = SwinIR(upscale=4, in_chans=3, img_size=64, 
+               window_size=8, img_range=1., depths=[6]*6,
+               embed_dim=180, num_heads=[6]*6, mlp_ratio=2,
+               upsampler='pixelshuffle', resi_connection='1conv')
+
+# 方式2：工厂创建
+model = ModelFactory.create_by_name('SwinIR', upscale=4)
+
+# 加载权重
+model.load_state_dict(torch.load('weights/model.pth'))
 model.eval()
 
-# Process image
+# 推理
 with torch.no_grad():
-    output = model(lr_image)
+    sr_image = model(lr_image)
 ```
 
-##  Model Configuration
+## 实验结果
 
-### Available Model Sizes
-| Model | Embed Dim | Params | Use Case |
-|-------|-----------|---------|----------|
-| JkNet-S | 60 | ~500K | Mobile/Edge |
-| JkNet-M | 180 | ~2.5M | Balanced |
-| JkNet-L | 240 | ~5.5M | High Quality |
+### 经典图像超分辨率 (4×)
 
-### Task-Specific Settings
-```python
-# Super-Resolution
-model = JkNet(upscale=4, upsampler='pixelshuffle', img_range=1.0)
+| 模型 | Set5 (PSNR/SSIM) | Set14 (PSNR/SSIM) | BSD100 (PSNR/SSIM) | Urban100 (PSNR/SSIM) | 参数量 |
+|------|------------------|-------------------|--------------------|-----------------------|--------|
+| EDSR | 32.46/0.8968 | 28.80/0.7876 | 27.71/0.7420 | 26.64/0.8033 | 43M |
+| SwinIR | 32.72/0.9021 | 28.94/0.7914 | 27.83/0.7459 | 27.07/0.8164 | 12M |
+| MambaIRv2 | 32.85/0.9031 | 29.05/0.7931 | 27.92/0.7481 | 27.35/0.8215 | 10M |
+| CWFNet | TBD | TBD | TBD | TBD | TBD |
 
-# Denoising/Artifact Removal  
-model = JkNet(upscale=1, upsampler='', img_range=255.0)
+> 实验结果持续更新中
+
+## 配置说明
+
+### YAML配置文件示例
+
+```yaml
+# configs/train_swinir_x4.yml
+model:
+  name: SwinIR
+  upscale: 4
+  in_chans: 3
+  img_size: 64
+  window_size: 8
+  embed_dim: 180
+  depths: [6, 6, 6, 6, 6, 6]
+  num_heads: [6, 6, 6, 6, 6, 6]
+  mlp_ratio: 2
+  upsampler: pixelshuffle
+
+training:
+  batch_size: 8
+  epochs: 100
+  lr: 1e-4
+  scheduler:
+    type: cosine
+  
+data:
+  train_dir: datasets/DIV2K/train
+  val_dir: datasets/DIV2K/val
+  patch_size: 64
 ```
 
-## 🎨 Applications
+## 引用
 
-### Supported Tasks
-- ** Single Image Super-Resolution**
-- ** Real-World Image Denoising** 
-- ** JPEG Compression Artifact Removal**
-- ** Lightweight Mobile Enhancement**
-- ** Real-Scenario Image Restoration**
-
-### Input/Output Examples
-```
-Input: 64×64 LR image
-→ JkNet Processing →
-Output: 256×256 HR image (4× super-resolution)
+如果本项目对您的研究有帮助，请引用相关工作：
+waiting for updation...
 ```
 
-## 🔧 Customization
 
-### Enable/Disable Components
-```python
-model = JkNet(
-    use_wavelet_hint=True,    # Enable wavelet branch
-    wavelet_gate=True,        # Enable adaptive gating
-    use_fpa=True,             # Enable frequency attention
-    num_tail_rstb=1,          # RSTB tail blocks
-    tail_depth=2              # Depth of tail blocks
-)
-```
+## 致谢
 
-### Advanced Configuration
-```python
-# Custom architecture
-model = JkNet(
-    depths=[4, 4, 8, 4],           # Custom depth per stage
-    num_heads=[4, 4, 8, 4],        # Custom attention heads
-    window_size=8,                 # Attention window size
-    mlp_ratio=2.0,                 # MLP expansion ratio
-    resi_connection='1conv'        # Residual connection type
-)
-```
-
-## 📝 Citation
-
-If you use JkNet in your research, please cite our work and the foundational papers:
-
-```bibtex
-@article{liang2021swinir,
-  title={SwinIR: Image Restoration Using Swin Transformer},
-  author={Liang, Jingyun and Cao, Jiezhang and Sun, Guolei and Zhang, Kai and Van Gool, Luc and Timofte, Radu},
-  journal={arXiv preprint arXiv:2108.10257},
-  year={2021}
-}
-
-@article{zhou2024mambairv2,
-  title={MambaIRv2: Efficient Image Restoration with State Space Models},
-  author={Zhou, Y. and Zhang, K. and Li, Y. and others},
-  journal={arXiv preprint arXiv:2411.15269},
-  year={2024}
-}
-
-@inproceedings{chen2024large,
-  title={Large Kernel Frequency-enhanced Network for Efficient Single Image Super-Resolution},
-  author={Chen, Y. and others},
-  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition Workshops},
-  year={2024}
-}
-
-@article{jknet2025,
-  title={JkNet: Robust Image Enhancement with Parallel Wavelet-Frequency Perception},
-  author={Hongyi Zhou},
-  journal={still developing},
-  year={2025}
-}
-```
-
-##  Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
-
--  **Bug Reports**: [GitHub Issues](https://github.com/Jackksonns/AetherNet/issues)
--  **Feature Requests**: Open an issue with the "enhancement" label
--  **Pull Requests**: Welcome for bug fixes and improvements
-
-##  License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-##  Acknowledgments
-
-- Built upon [MambaIRv2](https://arxiv.org/abs/2411.15269) and [SwinIR](https://arxiv.org/abs/2108.10257)
-- FPA module adapted from [Large Kernel Frequency-enhanced Network](https://ieeexplore.ieee.org/document/10678583) (CVPRW 2024)
-- Wavelet components inspired by traditional multi-resolution analysis
-- Thanks to all contributors and the open-source community
+- [SwinIR](https://github.com/JingyunLiang/SwinIR) - Swin Transformer图像恢复
+- [MambaIRv2](https://github.com/csguoh/MambaIR) - 状态空间模型图像恢复
+- [LKFNet](https://ieeexplore.ieee.org/document/10678583) - 大核频率增强网络
+- 以及所有开源社区贡献者
 
 ---
 
-**JkNet**: Where traditional signal processing meets modern deep learning for unprecedented image enhancement quality. 🚀
+**AetherNet** - 基于设计模式的图像恢复研究框架
 
-*Part of the [AetherNet](https://github.com/Jackksonns/AetherNet) project.*
+*Developed by [Jackksonns](https://github.com/Jackksonns)*

@@ -1,0 +1,37 @@
+# AetherNet - Requirements
+# ========================
+# Core dependencies for image restoration models
+
+# PyTorch (install separately based on your CUDA version)
+# See: https://pytorch.org/get-started/locally/
+torch>=1.12.0
+torchvision>=0.13.0
+
+# Image Processing
+opencv-python>=4.5.0
+Pillow>=9.0.0
+scikit-image>=0.19.0
+
+# Deep Learning Utilities
+timm>=0.6.0  # PyTorch Image Models
+einops>=0.4.0  # Tensor operations
+
+# Numerical Computing
+numpy>=1.21.0
+scipy>=1.7.0
+
+# Configuration & Logging
+PyYAML>=6.0
+tqdm>=4.62.0
+
+# Visualization (optional)
+tensorboard>=2.8.0
+matplotlib>=3.5.0
+
+# For MambaIRv2 (optional, requires specific installation)
+# mamba-ssm>=1.0.0  # Install separately if needed
+
+# Development (optional)
+# pytest>=7.0.0
+# black>=22.0.0
+# flake8>=4.0.0
