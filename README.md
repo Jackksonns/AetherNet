@@ -253,4 +253,4 @@ waiting for updation...
 
 **AetherNet** - 基于设计模式的图像恢复研究框架
 
-*Developed by [Jackksonns](https://github.com/Jackksonns)*
+*Developed by [Jackson ZHOU](https://github.com/Jackksonns)*
